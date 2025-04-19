@@ -2,7 +2,7 @@
 "use client";
 
 import { useState } from "react";
-import { Link, useLocation } from "react-router-dom";
+import { Link, useLocation, useNavigate } from "react-router-dom";
 import { 
   Home, 
   Luggage, 
@@ -20,6 +20,7 @@ import { cn } from "@/lib/utils";
 import { ThemeToggle } from "@/components/ui/theme-toggle";
 import { Button } from "@/components/ui/button";
 import { currentUser } from "@/utils/mock-data";
+import { useAuth } from "@/context/auth-context";
 
 interface SidebarProps {
   className?: string;
@@ -28,9 +29,16 @@ interface SidebarProps {
 export function Sidebar({ className }: SidebarProps) {
   const [collapsed, setCollapsed] = useState(false);
   const location = useLocation();
+  const { signOut } = useAuth();
+  const navigate = useNavigate();
   
   const isActive = (path: string) => {
     return location.pathname === path;
+  };
+
+  const handleSignOut = async () => {
+    await signOut();
+    navigate("/auth");
   };
 
   const SidebarLink = ({ path, icon: Icon, label }: { path: string; icon: React.ElementType; label: string }) => (
@@ -84,7 +92,12 @@ export function Sidebar({ className }: SidebarProps) {
         <div className="flex items-center justify-between p-2 border-t border-border mt-2 pt-2">
           {!collapsed && <ThemeToggle />}
           
-          <Button variant="ghost" size="icon" className="text-muted-foreground hover:text-destructive">
+          <Button 
+            variant="ghost" 
+            size="icon" 
+            className="text-muted-foreground hover:text-destructive"
+            onClick={handleSignOut}
+          >
             <LogOut size={20} />
           </Button>
         </div>

@@ -9,15 +9,19 @@ import { Separator } from "@/components/ui/separator";
 import { Switch } from "@/components/ui/switch";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Avatar, AvatarImage, AvatarFallback } from "@/components/ui/avatar";
-import { Edit, Save, Bell, Eye, EyeOff, CreditCard, Luggage } from "lucide-react";
+import { Edit, Save, Bell, Eye, EyeOff, CreditCard, Luggage, LogOut } from "lucide-react";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { mockLuggage } from "@/utils/mock-data";
 import { LuggageCard } from "@/components/luggage/luggage-card";
+import { useAuth } from "@/context/auth-context";
+import { useNavigate } from "react-router-dom";
 
 const UserProfile = () => {
   const [isEditing, setIsEditing] = useState(false);
   const [profileData, setProfileData] = useState(currentUser);
   const [activeTab, setActiveTab] = useState("profile");
+  const { signOut } = useAuth();
+  const navigate = useNavigate();
   
   // Filter luggage owned by current user
   const userLuggage = mockLuggage.filter(item => item.ownerId === currentUser.id);
@@ -32,9 +36,21 @@ const UserProfile = () => {
     setIsEditing(false);
   };
 
+  const handleSignOut = async () => {
+    await signOut();
+    navigate('/auth');
+  };
+
   return (
     <AppLayout title="Profile">
       <div className="space-y-6">
+        <div className="flex justify-end">
+          <Button variant="outline" className="flex items-center gap-2" onClick={handleSignOut}>
+            <LogOut size={16} />
+            Sign Out
+          </Button>
+        </div>
+
         <Tabs defaultValue={activeTab} onValueChange={setActiveTab} className="space-y-6">
           <TabsList className="grid w-full grid-cols-3">
             <TabsTrigger value="profile">Profile</TabsTrigger>
