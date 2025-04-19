@@ -78,31 +78,6 @@ export function AuthForm() {
       });
 
       if (error) {
-        // Special handling for email not confirmed error
-        if (error.message.includes("Email not confirmed")) {
-          // Try to automatically sign in anyway (since email confirmation is disabled)
-          const { error: signInError } = await supabase.auth.signUp({
-            email: data.email,
-            password: data.password,
-            options: {
-              emailRedirectTo: window.location.origin,
-            }
-          });
-          
-          if (!signInError) {
-            // If signup works, try login again
-            const { error: retryError } = await supabase.auth.signInWithPassword({
-              email: data.email,
-              password: data.password,
-            });
-            
-            if (!retryError) {
-              toast.success("Logged in successfully");
-              return;
-            }
-          }
-        }
-        
         toast.error("Login failed", {
           description: error.message,
         });
@@ -127,8 +102,7 @@ export function AuthForm() {
           data: {
             role: data.role,
             name: data.name,
-          },
-          emailRedirectTo: window.location.origin,
+          }
         }
       });
 
@@ -137,19 +111,9 @@ export function AuthForm() {
           description: error.message,
         });
       } else {
-        // Attempt to automatically sign in after registration
-        const { error: signInError } = await supabase.auth.signInWithPassword({
-          email: data.email,
-          password: data.password,
+        toast.success("Registration successful", {
+          description: "Please check your email to confirm your account",
         });
-        
-        if (signInError) {
-          toast.success("Registration successful", {
-            description: "Please check your email to confirm your account",
-          });
-        } else {
-          toast.success("Registration and login successful");
-        }
       }
     } catch (error) {
       console.error("Registration error:", error);
