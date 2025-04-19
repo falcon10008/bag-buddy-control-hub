@@ -1,39 +1,130 @@
 
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { AppLayout } from "@/components/layout/app-layout";
-import { currentUser } from "@/utils/mock-data";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Separator } from "@/components/ui/separator";
-import { Switch } from "@/components/ui/switch";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Avatar, AvatarImage, AvatarFallback } from "@/components/ui/avatar";
-import { Edit, Save, Bell, Eye, EyeOff, CreditCard, Luggage, LogOut } from "lucide-react";
+import { Edit, Save, LogOut, Loader2 } from "lucide-react";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
-import { mockLuggage } from "@/utils/mock-data";
-import { LuggageCard } from "@/components/luggage/luggage-card";
 import { useAuth } from "@/context/auth-context";
 import { useNavigate } from "react-router-dom";
+import { supabase } from "@/integrations/supabase/client";
+import { toast } from "sonner";
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
+import { useTheme } from "@/context/theme-context";
+
+interface UserProfile {
+  id: string;
+  email: string | null;
+  first_name: string | null;
+  last_name: string | null;
+  theme: string | null;
+  avatar_url: string | null;
+  role: string;
+  created_at: string;
+  updated_at: string;
+}
 
 const UserProfile = () => {
   const [isEditing, setIsEditing] = useState(false);
-  const [profileData, setProfileData] = useState(currentUser);
+  const [isLoading, setIsLoading] = useState(true);
+  const [isSaving, setIsSaving] = useState(false);
   const [activeTab, setActiveTab] = useState("profile");
-  const { signOut } = useAuth();
+  const [profileData, setProfileData] = useState<UserProfile | null>(null);
+  const [formData, setFormData] = useState<Partial<UserProfile>>({});
+  const { user, signOut } = useAuth();
   const navigate = useNavigate();
+  const { setTheme } = useTheme();
   
-  // Filter luggage owned by current user
-  const userLuggage = mockLuggage.filter(item => item.ownerId === currentUser.id);
+  useEffect(() => {
+    if (!user) {
+      navigate('/auth');
+      return;
+    }
+    
+    fetchUserProfile();
+  }, [user, navigate]);
+
+  const fetchUserProfile = async () => {
+    setIsLoading(true);
+    try {
+      const { data, error } = await supabase
+        .from('profiles')
+        .select('*')
+        .eq('id', user?.id)
+        .maybeSingle();
+        
+      if (error) {
+        throw error;
+      }
+      
+      if (data) {
+        setProfileData(data as UserProfile);
+        setFormData({
+          first_name: data.first_name,
+          last_name: data.last_name,
+          theme: data.theme
+        });
+      }
+    } catch (error) {
+      console.error('Error fetching user profile:', error);
+      toast.error('Failed to load profile data');
+    } finally {
+      setIsLoading(false);
+    }
+  };
 
   const handleInputChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     const { name, value } = e.target;
-    setProfileData(prev => ({ ...prev, [name]: value }));
+    setFormData(prev => ({ ...prev, [name]: value }));
   };
 
-  const handleSaveChanges = () => {
-    console.log("Saving profile changes:", profileData);
-    setIsEditing(false);
+  const handleThemeChange = (value: string) => {
+    setFormData(prev => ({ ...prev, theme: value }));
+  };
+
+  const handleSaveChanges = async () => {
+    if (!user) return;
+
+    setIsSaving(true);
+    try {
+      const { error } = await supabase
+        .from('profiles')
+        .update({
+          first_name: formData.first_name,
+          last_name: formData.last_name,
+          theme: formData.theme,
+          updated_at: new Date().toISOString()
+        })
+        .eq('id', user.id);
+      
+      if (error) {
+        throw error;
+      }
+      
+      // Update profile data
+      setProfileData(prev => ({
+        ...prev!,
+        ...formData,
+        updated_at: new Date().toISOString()
+      }));
+
+      // Apply theme change
+      if (formData.theme && formData.theme !== profileData?.theme) {
+        setTheme(formData.theme as "light" | "dark");
+      }
+      
+      toast.success('Profile updated successfully');
+      setIsEditing(false);
+    } catch (error) {
+      console.error('Error updating profile:', error);
+      toast.error('Failed to update profile');
+    } finally {
+      setIsSaving(false);
+    }
   };
 
   const handleSignOut = async () => {
@@ -41,9 +132,34 @@ const UserProfile = () => {
     navigate('/auth');
   };
 
+  const handleCancelEdit = () => {
+    // Reset form data to profile data
+    if (profileData) {
+      setFormData({
+        first_name: profileData.first_name,
+        last_name: profileData.last_name,
+        theme: profileData.theme
+      });
+    }
+    setIsEditing(false);
+  };
+
+  if (isLoading) {
+    return (
+      <AppLayout title="Profile">
+        <div className="h-[50vh] flex items-center justify-center">
+          <div className="flex flex-col items-center gap-4">
+            <Loader2 size={40} className="animate-spin text-primary" />
+            <p className="text-muted-foreground">Loading profile data...</p>
+          </div>
+        </div>
+      </AppLayout>
+    );
+  }
+
   return (
     <AppLayout title="Profile">
-      <div className="space-y-6">
+      <div className="space-y-6 max-w-4xl mx-auto">
         <div className="flex justify-end">
           <Button variant="outline" className="flex items-center gap-2" onClick={handleSignOut}>
             <LogOut size={16} />
@@ -52,10 +168,8 @@ const UserProfile = () => {
         </div>
 
         <Tabs defaultValue={activeTab} onValueChange={setActiveTab} className="space-y-6">
-          <TabsList className="grid w-full grid-cols-3">
+          <TabsList className="grid w-full grid-cols-1">
             <TabsTrigger value="profile">Profile</TabsTrigger>
-            <TabsTrigger value="luggage">My Luggage</TabsTrigger>
-            <TabsTrigger value="settings">Settings</TabsTrigger>
           </TabsList>
 
           {/* Profile Tab */}
@@ -70,10 +184,24 @@ const UserProfile = () => {
                     </CardDescription>
                   </div>
                   {isEditing ? (
-                    <Button onClick={handleSaveChanges}>
-                      <Save className="mr-2 h-4 w-4" />
-                      Save
-                    </Button>
+                    <div className="flex gap-2">
+                      <Button variant="outline" onClick={handleCancelEdit} disabled={isSaving}>
+                        Cancel
+                      </Button>
+                      <Button onClick={handleSaveChanges} disabled={isSaving}>
+                        {isSaving ? (
+                          <>
+                            <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                            Saving
+                          </>
+                        ) : (
+                          <>
+                            <Save className="mr-2 h-4 w-4" />
+                            Save
+                          </>
+                        )}
+                      </Button>
+                    </div>
                   ) : (
                     <Button onClick={() => setIsEditing(true)}>
                       <Edit className="mr-2 h-4 w-4" />
@@ -87,60 +215,55 @@ const UserProfile = () => {
                 <div className="flex flex-col sm:flex-row items-center sm:items-start gap-6">
                   <div className="flex flex-col items-center gap-2">
                     <Avatar className="w-24 h-24">
-                      {profileData.profileImage ? (
-                        <AvatarImage src={profileData.profileImage} alt={profileData.name} />
+                      {profileData?.avatar_url ? (
+                        <AvatarImage src={profileData.avatar_url} alt={profileData.first_name || 'User'} />
                       ) : (
                         <AvatarFallback className="text-2xl bg-primary/10 text-primary">
-                          {profileData.name.charAt(0)}
+                          {profileData?.first_name?.[0] || user?.email?.[0] || 'U'}
                         </AvatarFallback>
                       )}
                     </Avatar>
-                    {isEditing && (
-                      <Button variant="outline" size="sm">
-                        Change Photo
-                      </Button>
-                    )}
+                    {/* Avatar upload could be implemented here in the future */}
                   </div>
 
                   <div className="flex-1 space-y-4">
                     <div className="grid gap-4 grid-cols-1 sm:grid-cols-2">
                       <div className="space-y-2">
-                        <Label htmlFor="name">Name</Label>
+                        <Label htmlFor="first_name">First Name</Label>
                         {isEditing ? (
                           <Input
-                            id="name"
-                            name="name"
-                            value={profileData.name}
+                            id="first_name"
+                            name="first_name"
+                            value={formData.first_name || ''}
                             onChange={handleInputChange}
                           />
                         ) : (
-                          <p className="text-lg">{profileData.name}</p>
+                          <p className="text-lg">{profileData?.first_name || 'Not set'}</p>
                         )}
                       </div>
                       <div className="space-y-2">
-                        <Label htmlFor="email">Email</Label>
+                        <Label htmlFor="last_name">Last Name</Label>
                         {isEditing ? (
                           <Input
-                            id="email"
-                            name="email"
-                            type="email"
-                            value={profileData.email}
+                            id="last_name"
+                            name="last_name"
+                            value={formData.last_name || ''}
                             onChange={handleInputChange}
                           />
                         ) : (
-                          <p className="text-lg">{profileData.email}</p>
+                          <p className="text-lg">{profileData?.last_name || 'Not set'}</p>
                         )}
                       </div>
                     </div>
                     
                     <div className="grid gap-4 grid-cols-1 sm:grid-cols-2">
                       <div className="space-y-2">
+                        <Label htmlFor="email">Email</Label>
+                        <p className="text-lg">{profileData?.email || user?.email || 'No email'}</p>
+                      </div>
+                      <div className="space-y-2">
                         <Label htmlFor="role">Role</Label>
-                        <p className="capitalize">{profileData.role}</p>
-                      </div>
-                      <div className="space-y-2">
-                        <Label htmlFor="id">User ID</Label>
-                        <p className="font-mono">{profileData.id}</p>
+                        <p className="capitalize">{profileData?.role || 'User'}</p>
                       </div>
                     </div>
                   </div>
@@ -148,163 +271,40 @@ const UserProfile = () => {
 
                 <Separator />
 
-                {/* Security section */}
+                {/* Theme settings */}
                 <div className="space-y-4">
-                  <h3 className="text-lg font-semibold">Security</h3>
+                  <h3 className="text-lg font-semibold">Theme Settings</h3>
                   
-                  {isEditing ? (
-                    <div className="grid gap-4 grid-cols-1 sm:grid-cols-2">
-                      <div className="space-y-2">
-                        <Label htmlFor="currentPassword">Current Password</Label>
-                        <Input
-                          id="currentPassword"
-                          name="currentPassword"
-                          type="password"
-                          placeholder="Enter current password"
-                        />
-                      </div>
-                      <div></div>
-                      <div className="space-y-2">
-                        <Label htmlFor="newPassword">New Password</Label>
-                        <Input
-                          id="newPassword"
-                          name="newPassword"
-                          type="password"
-                          placeholder="Enter new password"
-                        />
-                      </div>
-                      <div className="space-y-2">
-                        <Label htmlFor="confirmPassword">Confirm New Password</Label>
-                        <Input
-                          id="confirmPassword"
-                          name="confirmPassword"
-                          type="password"
-                          placeholder="Confirm new password"
-                        />
-                      </div>
-                    </div>
-                  ) : (
-                    <div className="flex items-center justify-between">
-                      <div className="flex items-center gap-2">
-                        <Eye className="h-4 w-4 text-muted-foreground" />
-                        <p>Password</p>
-                      </div>
-                      <p className="text-muted-foreground">••••••••</p>
-                    </div>
-                  )}
-                </div>
-              </CardContent>
-            </Card>
-          </TabsContent>
-
-          {/* Luggage Tab */}
-          <TabsContent value="luggage">
-            <Card>
-              <CardHeader>
-                <CardTitle className="flex items-center gap-2">
-                  <Luggage className="h-5 w-5" /> My Luggage
-                </CardTitle>
-                <CardDescription>
-                  View and manage your luggage items
-                </CardDescription>
-              </CardHeader>
-              <CardContent>
-                {userLuggage.length > 0 ? (
-                  <div className="grid gap-6 grid-cols-1 md:grid-cols-2">
-                    {userLuggage.map(luggage => (
-                      <LuggageCard key={luggage.id} luggage={luggage} />
-                    ))}
-                  </div>
-                ) : (
-                  <div className="text-center py-12">
-                    <Luggage className="h-12 w-12 mx-auto text-muted-foreground opacity-20 mb-4" />
-                    <h3 className="text-lg font-medium mb-1">No luggage found</h3>
-                    <p className="text-muted-foreground">
-                      You don't have any luggage in the system yet.
-                    </p>
-                  </div>
-                )}
-              </CardContent>
-            </Card>
-          </TabsContent>
-
-          {/* Settings Tab */}
-          <TabsContent value="settings">
-            <Card>
-              <CardHeader>
-                <CardTitle>Notification Settings</CardTitle>
-                <CardDescription>
-                  Control how you receive notifications
-                </CardDescription>
-              </CardHeader>
-              <CardContent className="space-y-6">
-                <div className="space-y-4">
-                  <div className="flex items-center justify-between">
-                    <div className="flex items-center gap-2">
-                      <Bell className="h-4 w-4 text-muted-foreground" />
-                      <div className="grid gap-0.5">
-                        <Label htmlFor="status-updates">Status Updates</Label>
-                        <p className="text-sm text-muted-foreground">
-                          Get notified when your luggage status changes
-                        </p>
-                      </div>
-                    </div>
-                    <Switch id="status-updates" defaultChecked />
-                  </div>
-                  
-                  <div className="flex items-center justify-between">
-                    <div className="flex items-center gap-2">
-                      <EyeOff className="h-4 w-4 text-muted-foreground" />
-                      <div className="grid gap-0.5">
-                        <Label htmlFor="lost-alerts">Lost Luggage Alerts</Label>
-                        <p className="text-sm text-muted-foreground">
-                          Receive alerts for lost luggage notifications
-                        </p>
-                      </div>
-                    </div>
-                    <Switch id="lost-alerts" defaultChecked />
-                  </div>
-                  
-                  <div className="flex items-center justify-between">
-                    <div className="flex items-center gap-2">
-                      <CreditCard className="h-4 w-4 text-muted-foreground" />
-                      <div className="grid gap-0.5">
-                        <Label htmlFor="billing-notifs">Billing Notifications</Label>
-                        <p className="text-sm text-muted-foreground">
-                          Get notified about billing and service charges
-                        </p>
-                      </div>
-                    </div>
-                    <Switch id="billing-notifs" />
-                  </div>
-                </div>
-
-                <Separator />
-                
-                <div className="space-y-4">
-                  <h3 className="text-lg font-semibold">Communication Preferences</h3>
                   <div className="grid gap-4 grid-cols-1 sm:grid-cols-2">
                     <div className="space-y-2">
-                      <Label htmlFor="email-prefs">Email Notifications</Label>
-                      <div className="flex items-center space-x-2">
-                        <Switch id="email-prefs" defaultChecked />
-                        <Label htmlFor="email-prefs">Enabled</Label>
-                      </div>
+                      <Label htmlFor="theme">Theme Preference</Label>
+                      {isEditing ? (
+                        <Select
+                          value={formData.theme || 'dark'}
+                          onValueChange={handleThemeChange}
+                        >
+                          <SelectTrigger className="w-full">
+                            <SelectValue placeholder="Select theme" />
+                          </SelectTrigger>
+                          <SelectContent>
+                            <SelectItem value="light">Light</SelectItem>
+                            <SelectItem value="dark">Dark</SelectItem>
+                          </SelectContent>
+                        </Select>
+                      ) : (
+                        <p className="capitalize">{profileData?.theme || 'Dark'}</p>
+                      )}
                     </div>
                     <div className="space-y-2">
-                      <Label htmlFor="sms-prefs">SMS Notifications</Label>
-                      <div className="flex items-center space-x-2">
-                        <Switch id="sms-prefs" />
-                        <Label htmlFor="sms-prefs">Enabled</Label>
-                      </div>
+                      <Label htmlFor="user_since">User Since</Label>
+                      <p>{new Date(profileData?.created_at || Date.now()).toLocaleDateString()}</p>
                     </div>
                   </div>
                 </div>
                 
-                <Separator />
-                
-                <div className="flex justify-end">
-                  <Button>Save Preferences</Button>
+                {/* Last updated timestamp */}
+                <div className="pt-4 text-sm text-muted-foreground">
+                  Last updated: {new Date(profileData?.updated_at || Date.now()).toLocaleString()}
                 </div>
               </CardContent>
             </Card>

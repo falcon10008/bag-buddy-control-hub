@@ -1,5 +1,7 @@
 
 import { createContext, useContext, useState, useEffect, ReactNode } from "react";
+import { useAuth } from "./auth-context";
+import { supabase } from "@/integrations/supabase/client";
 
 type Theme = "light" | "dark";
 
@@ -24,6 +26,31 @@ export function ThemeProvider({ children }: { children: ReactNode }) {
     }
     return "light";
   });
+  
+  const { user } = useAuth();
+
+  // Effect to update theme when user changes
+  useEffect(() => {
+    if (user) {
+      const fetchUserTheme = async () => {
+        try {
+          const { data, error } = await supabase
+            .from('profiles')
+            .select('theme')
+            .eq('id', user.id)
+            .maybeSingle();
+            
+          if (!error && data && data.theme) {
+            setTheme(data.theme as Theme);
+          }
+        } catch (error) {
+          console.error('Error fetching user theme preference:', error);
+        }
+      };
+      
+      fetchUserTheme();
+    }
+  }, [user]);
 
   useEffect(() => {
     // Update document class and local storage when theme changes
@@ -33,7 +60,23 @@ export function ThemeProvider({ children }: { children: ReactNode }) {
     root.classList.add(theme);
     
     localStorage.setItem("bagbuddy-theme", theme);
-  }, [theme]);
+    
+    // If user is authenticated, update their theme preference in database
+    if (user) {
+      const updateUserTheme = async () => {
+        try {
+          await supabase
+            .from('profiles')
+            .update({ theme })
+            .eq('id', user.id);
+        } catch (error) {
+          console.error('Error updating user theme preference:', error);
+        }
+      };
+      
+      updateUserTheme();
+    }
+  }, [theme, user]);
 
   const toggleTheme = () => {
     setTheme(prevTheme => (prevTheme === "light" ? "dark" : "light"));
