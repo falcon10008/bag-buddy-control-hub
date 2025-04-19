@@ -13,7 +13,8 @@ import {
   AlertTriangle, 
   Menu, 
   X, 
-  LogOut
+  LogOut,
+  Package
 } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { ThemeToggle } from "@/components/ui/theme-toggle";
@@ -72,6 +73,7 @@ export function Sidebar({ className }: SidebarProps) {
         <SidebarLink path="/" icon={Home} label="Dashboard" />
         <SidebarLink path="/luggage" icon={Luggage} label="Luggage List" />
         <SidebarLink path="/scan" icon={ScanSearch} label="Check-In / Scan" />
+        <SidebarLink path="/stock" icon={Package} label="Stock View" />
         <SidebarLink path="/lost-found" icon={AlertTriangle} label="Lost & Found" />
       </div>
       

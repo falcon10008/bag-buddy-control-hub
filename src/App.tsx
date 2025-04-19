@@ -15,6 +15,8 @@ import LostFound from "./pages/LostFound";
 import UserProfile from "./pages/UserProfile";
 import Settings from "./pages/Settings";
 import NotFound from "./pages/NotFound";
+import StockView from "./pages/StockView";
+import Index from "./pages/Index";
 
 const queryClient = new QueryClient();
 
@@ -34,6 +36,7 @@ const App = () => (
             <Route path="/lost-found" element={<LostFound />} />
             <Route path="/profile" element={<UserProfile />} />
             <Route path="/settings" element={<Settings />} />
+            <Route path="/stock" element={<StockView />} />
             <Route path="*" element={<NotFound />} />
           </Routes>
         </BrowserRouter>
