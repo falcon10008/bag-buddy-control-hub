@@ -3,6 +3,7 @@ import { useState } from "react";
 import { z } from "zod";
 import { useForm } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
+import { supabase } from "@/integrations/supabase/client";
 import { Button } from "@/components/ui/button";
 import {
   Form,
@@ -13,17 +14,10 @@ import {
   FormMessage,
 } from "@/components/ui/form";
 import { Input } from "@/components/ui/input";
-import {
-  Select,
-  SelectContent,
-  SelectItem,
-  SelectTrigger,
-  SelectValue,
-} from "@/components/ui/select";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Checkbox } from "@/components/ui/checkbox";
 import { Luggage } from "lucide-react";
-import { useNavigate } from "react-router-dom";
+import { toast } from "@/components/ui/sonner";
 
 const loginSchema = z.object({
   email: z.string().email({ message: "Please enter a valid email address" }),
@@ -50,7 +44,7 @@ type RegisterFormValues = z.infer<typeof registerSchema>;
 
 export function AuthForm() {
   const [isLoading, setIsLoading] = useState(false);
-  const navigate = useNavigate();
+  const [activeTab, setActiveTab] = useState("login");
   
   // Login form
   const loginForm = useForm<LoginFormValues>({
@@ -78,14 +72,21 @@ export function AuthForm() {
   const onLoginSubmit = async (data: LoginFormValues) => {
     setIsLoading(true);
     try {
-      console.log("Login data:", data);
-      // Simulate API call
-      await new Promise(resolve => setTimeout(resolve, 1000));
-      
-      // Navigate to dashboard on success
-      navigate("/");
+      const { error } = await supabase.auth.signInWithPassword({
+        email: data.email,
+        password: data.password,
+      });
+
+      if (error) {
+        toast.error("Login failed", {
+          description: error.message,
+        });
+      } else {
+        toast.success("Logged in successfully");
+      }
     } catch (error) {
       console.error("Login error:", error);
+      toast.error("An unexpected error occurred");
     } finally {
       setIsLoading(false);
     }
@@ -94,14 +95,29 @@ export function AuthForm() {
   const onRegisterSubmit = async (data: RegisterFormValues) => {
     setIsLoading(true);
     try {
-      console.log("Register data:", data);
-      // Simulate API call
-      await new Promise(resolve => setTimeout(resolve, 1000));
-      
-      // Navigate to dashboard on success
-      navigate("/");
+      const { error } = await supabase.auth.signUp({
+        email: data.email,
+        password: data.password,
+        options: {
+          data: {
+            role: data.role,
+            name: data.name,
+          }
+        }
+      });
+
+      if (error) {
+        toast.error("Registration failed", {
+          description: error.message,
+        });
+      } else {
+        toast.success("Registration successful", {
+          description: "Please check your email to confirm your account",
+        });
+      }
     } catch (error) {
-      console.error("Register error:", error);
+      console.error("Registration error:", error);
+      toast.error("An unexpected error occurred");
     } finally {
       setIsLoading(false);
     }
@@ -119,7 +135,12 @@ export function AuthForm() {
         </p>
       </div>
       
-      <Tabs defaultValue="login" className="w-full">
+      <Tabs 
+        defaultValue="login" 
+        className="w-full"
+        value={activeTab}
+        onValueChange={setActiveTab}
+      >
         <TabsList className="grid w-full grid-cols-2">
           <TabsTrigger value="login">Login</TabsTrigger>
           <TabsTrigger value="register">Register</TabsTrigger>
@@ -239,17 +260,15 @@ export function AuthForm() {
                 render={({ field }) => (
                   <FormItem>
                     <FormLabel>Role</FormLabel>
-                    <Select onValueChange={field.onChange} defaultValue={field.value}>
-                      <FormControl>
-                        <SelectTrigger>
-                          <SelectValue placeholder="Select a role" />
-                        </SelectTrigger>
-                      </FormControl>
-                      <SelectContent>
-                        <SelectItem value="user">User</SelectItem>
-                        <SelectItem value="admin">Admin</SelectItem>
-                      </SelectContent>
-                    </Select>
+                    <FormControl>
+                      <select
+                        {...field}
+                        className="w-full p-2 border rounded"
+                      >
+                        <option value="user">User</option>
+                        <option value="admin">Admin</option>
+                      </select>
+                    </FormControl>
                     <FormMessage />
                   </FormItem>
                 )}

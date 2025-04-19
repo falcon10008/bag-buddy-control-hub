@@ -9,7 +9,140 @@ export type Json =
 export type Database = {
   public: {
     Tables: {
-      [_ in never]: never
+      lost_found: {
+        Row: {
+          description: string | null
+          id: string
+          location: string | null
+          luggage_id: string | null
+          notes: string | null
+          report_type: string
+          reported_at: string
+          reporter_id: string
+          resolved: boolean
+          resolved_at: string | null
+          resolved_by: string | null
+        }
+        Insert: {
+          description?: string | null
+          id?: string
+          location?: string | null
+          luggage_id?: string | null
+          notes?: string | null
+          report_type: string
+          reported_at?: string
+          reporter_id: string
+          resolved?: boolean
+          resolved_at?: string | null
+          resolved_by?: string | null
+        }
+        Update: {
+          description?: string | null
+          id?: string
+          location?: string | null
+          luggage_id?: string | null
+          notes?: string | null
+          report_type?: string
+          reported_at?: string
+          reporter_id?: string
+          resolved?: boolean
+          resolved_at?: string | null
+          resolved_by?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "lost_found_luggage_id_fkey"
+            columns: ["luggage_id"]
+            isOneToOne: false
+            referencedRelation: "luggage"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      luggage: {
+        Row: {
+          check_in_date: string
+          color: string
+          description: string | null
+          flight: string | null
+          id: string
+          image_url: string | null
+          last_updated: string
+          location: string | null
+          qr_code: string | null
+          status: string
+          tags: string[] | null
+          user_id: string
+          weight: number
+        }
+        Insert: {
+          check_in_date?: string
+          color: string
+          description?: string | null
+          flight?: string | null
+          id?: string
+          image_url?: string | null
+          last_updated?: string
+          location?: string | null
+          qr_code?: string | null
+          status: string
+          tags?: string[] | null
+          user_id: string
+          weight: number
+        }
+        Update: {
+          check_in_date?: string
+          color?: string
+          description?: string | null
+          flight?: string | null
+          id?: string
+          image_url?: string | null
+          last_updated?: string
+          location?: string | null
+          qr_code?: string | null
+          status?: string
+          tags?: string[] | null
+          user_id?: string
+          weight?: number
+        }
+        Relationships: []
+      }
+      profiles: {
+        Row: {
+          avatar_url: string | null
+          created_at: string
+          email: string | null
+          first_name: string | null
+          id: string
+          last_name: string | null
+          role: string
+          theme: string | null
+          updated_at: string
+        }
+        Insert: {
+          avatar_url?: string | null
+          created_at?: string
+          email?: string | null
+          first_name?: string | null
+          id: string
+          last_name?: string | null
+          role?: string
+          theme?: string | null
+          updated_at?: string
+        }
+        Update: {
+          avatar_url?: string | null
+          created_at?: string
+          email?: string | null
+          first_name?: string | null
+          id?: string
+          last_name?: string | null
+          role?: string
+          theme?: string | null
+          updated_at?: string
+        }
+        Relationships: []
+      }
     }
     Views: {
       [_ in never]: never
